@@ -1,0 +1,60 @@
+#packetbeat.interfaces.device: ens33
+
+packetbeat.config:
+  modules:
+    path: ${path.config}/modules.d/*.yml
+    # Reload module configs as they change:
+    reload.enabled: false
+
+packetbeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+
+packetbeat.protocols.amqp:
+  ports: [5672]
+  max_body_length: 10000
+  parse_headers: true
+  parse_arguents: true
+  hide_connection_information: true
+  send_request: true
+  send_response: true
+  processors:
+    - decode_json_fields:
+        fields: ["request", "response"]
+        process_array: true
+        max_depth: 1000
+        target: "amqp_content_as_json"
+        overwrite_keys: true
+        add_error_key: true
+
+packetbeat.protocols.http:
+  ports: [80]
+  hide_keywords: ["pass", "password", "passwd"]
+  send_headers: ["User-Agent", "Cookie", "Set-Cookie"]
+  split_cookie: true
+  real_ip_header: "X-Forwarded-For"
+  send_headers: true
+  send_request: true
+  send_response: true
+  decode_body: true
+  include_body_for: ["application/json"]
+  processors:
+    #- drop_event:
+    #    when:
+    #      not:
+    #        equals:
+    #          include_body_for: ['application/json']
+    - decode_json_fields:
+        fields: ["request","response"]
+        process_array: true
+        max_depth: 1000
+        target: "http_content_as_json"
+        overwrite_keys: true
+        add_error_key: true
+
+output.elasticsearch:
+  hosts: ["localhost:9200"]
+  
+  username: $ELASTIC_USER_NAME
+  password: $ELASTIC_PASSWORD
